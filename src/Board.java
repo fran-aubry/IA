@@ -200,27 +200,29 @@ public class Board {
 	public String toString() {
 		StringBuilder string = new StringBuilder();
 		
-		string.append(' ');
+		String space = board.length < 10 ? "" : " ";
+		
+		string.append(space + ' ');
 		for(int i = 0; i < board.length; i++) {
 			string.append(GTP.LABELS.charAt(i));
 		}
-		string.append(' ');
+		string.append(space + ' ');
 		string.append('\n');
 		
 		for (int i = 0; i < board.length; i++) {
-			string.append(board.length - i);
+			string.append(board.length - i < 10 ? space + (board.length - i) : board.length - i);
 			for (int j = 0; j < board[i].length; j++) {
 				string.append(board[board.length - i - 1][j].toString());
 			}
-			string.append(board.length - i);
+			string.append(board.length - i < 10 ? space + (board.length - i) : board.length - i);
 			string.append('\n');
 		}
 		
-		string.append(' ');
+		string.append(space + ' ');
 		for(int i = 0; i < board.length; i++) {
 			string.append(GTP.LABELS.charAt(i));
 		}
-		string.append(' ');
+		string.append(space + ' ');
 
 		return string.toString();
 	}

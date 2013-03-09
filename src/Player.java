@@ -8,7 +8,8 @@ public abstract class Player {
 	}
 	
 	public void putStone(Index position, Color color) {
-		game.getBoard().setColor(position, color);
+		Board board = game.getBoard().processMove(position, color);
+		game.setBoard(board);
 	}
 	
 	/**

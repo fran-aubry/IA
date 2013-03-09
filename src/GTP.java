@@ -53,7 +53,7 @@ public class GTP {
 		
 		Scanner reader = new Scanner(System.in);
 		while(reader.hasNextLine()) {
-			String line = reader.nextLine().toLowerCase();
+			String line = reader.nextLine();
 			if(!line.equals("") && !line.equals(" ")) {
 				// parse line
 				String[] data = line.split(" ");
