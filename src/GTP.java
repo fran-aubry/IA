@@ -18,6 +18,7 @@ import java.util.Scanner;
 
 +showboard
 
+
  */
 public class GTP {
 
