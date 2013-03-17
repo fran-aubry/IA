@@ -1,6 +1,8 @@
+import java.util.LinkedList;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Queue;
 import java.util.Set;
 
 /** An individual state of the board. */
@@ -17,7 +19,7 @@ public class Board {
 		this.board = board;
 		this.koPoint = null;
 	}
-	
+
 	public Board(int size) {
 		boardSize = size;
 		board = new Color[size][size];
@@ -28,7 +30,7 @@ public class Board {
 		}
 		this.koPoint = null;
 	}
-	
+
 	public Board(Color[][] board, Index koPoint) {
 		boardSize = board.length;
 		this.board = board;
@@ -43,38 +45,121 @@ public class Board {
 		board[p.i][p.j] = color;
 	}
 
-	public boolean canMove(Index p, Color c) {
-		return processMove(p, c) != null;
-	}
-	
 	public int getSize() {
 		return boardSize;
 	}
-	
+
 	public Index getFirstPossibleMove(Color c) {
 		for(int i = 0; i < boardSize; i++) {
 			for(int j = 0; j < boardSize; j++) {
 				Index p = new Index(i, j);
-				if(canMove(p, c)) {
+				if(isValidMove(p, c)) {
 					return p;
 				}
 			}
 		}
 		return null;
 	}
-	
-	public Board makeFirstPossibleMove(Color c) {
+
+	public void makeFirstPossibleMove(Color c) {
 		for(int i = 0; i < boardSize; i++) {
 			for(int j = 0; j < boardSize; j++) {
 				Index p = new Index(i, j);
-				if(canMove(p, c)) {
-					return processMove(p, c);
+				if(isValidMove(p, c)) {
+					processMove(p, c);
 				}
 			}
 		}
-		return null;
 	}
 	
+	/**
+	 * Process a given play. It is assumed that the play is VALID.
+	 */
+	public void processMove(Index I, Color c) {
+		List<Index> neighbors = getNeighbors(I);
+		int nbRemovedStones = 0;
+		for(Index J : neighbors) {
+			Chain chain = getChainAt(J, c.opposite());
+			// Since the play is valid, if an adjacent chain
+			// has only one liberty, then I must be it.
+			if(chain.nbLiberties() == 1) {
+				nbRemovedStones += chain.getSize();
+				remove(chain);
+			}
+		}
+		// If exactly one stone was removed then it is the new ko point.
+		if(nbRemovedStones == 1) {
+			koPoint = I;
+		}
+		board[I.i][I.j] = c;
+	}
+	
+	private void remove(Chain chain) {
+		for(Index I : chain.getStones()) {
+			board[I.i][I.j] = Color.EMPTY;
+		}
+	}
+
+	public Chain getChainAt(Index p, Color c) {
+		Chain chain = new Chain();
+		if(board[p.i][p.j] == c) {
+			getChainAt(p, c, chain);
+		}
+		return chain;
+	}
+
+	private void getChainAt(Index p, Color c, Chain chain) {
+		chain.addStone(p);
+		List<Index> neighbors = getNeighbors(p);
+		for(Index I : neighbors) {
+			if(board[I.i][I.j] == c && !chain.containsStone(I)) {
+				getChainAt(I, c, chain);
+			}
+			if(board[I.i][I.j] == Color.EMPTY) {
+				chain.addLiberty(I);
+			}
+		}
+	}
+
+
+	/**
+	 * Check if it is a valid move to put a stone of
+	 * color c at position I. 
+	 */
+	public boolean isValidMove(Index I, Color c) {
+		// Is the position already occupied?
+		if(board[I.i][I.j] != Color.EMPTY) {
+			return false;
+		}
+		// Is the move ko?
+		if(I.equals(koPoint)) {
+			return false;
+		}
+		// If the move suicide?
+		List<Index> neighbors = getNeighbors(I);
+		for(Index N : neighbors) {
+			// The neighbor position is empty, so the move is valid.
+			if(getColor(N) == Color.EMPTY) {
+				return true;
+			}
+			// The neighbor is of the same color.
+			if(getColor(N) == c) { 
+				if(getChainAt(N, c).nbLiberties() != 1) {
+					// The chain is not in atari so it is ok.
+					return true;
+				} else {
+					// The chain is in atari so it is a chain suicide.
+					return false;
+				}
+			}
+		}
+		// At this point, we know that all neighbors are of the opposite color.
+		// Therefore the move is a suicide, hence invalid. 
+		return false;
+	}
+
+	
+	/*
 	public Board processMove(Index p, Color c) {
 		Board result = clone();
 		Set<Index> capturedStones = new HashSet<Index>();
@@ -135,6 +220,7 @@ public class Board {
 
 		return result;
 	}
+	 */
 
 
 	public List<Index> getNeighbors(Index p) {
@@ -199,16 +285,16 @@ public class Board {
 	@Override
 	public String toString() {
 		StringBuilder string = new StringBuilder();
-		
+
 		String space = board.length < 10 ? "" : " ";
-		
+
 		string.append(space + ' ');
 		for(int i = 0; i < board.length; i++) {
 			string.append(GTP.LABELS.charAt(i));
 		}
 		string.append(space + ' ');
 		string.append('\n');
-		
+
 		for (int i = 0; i < board.length; i++) {
 			string.append(board.length - i < 10 ? space + (board.length - i) : board.length - i);
 			for (int j = 0; j < board[i].length; j++) {
@@ -217,7 +303,7 @@ public class Board {
 			string.append(board.length - i < 10 ? space + (board.length - i) : board.length - i);
 			string.append('\n');
 		}
-		
+
 		string.append(space + ' ');
 		for(int i = 0; i < board.length; i++) {
 			string.append(GTP.LABELS.charAt(i));

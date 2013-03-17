@@ -20,6 +20,20 @@ public class Index {
 		return new Index(i, j);
 	}
 	
+	public boolean equals(Object other) {
+		if (other == this) return true;
+        if (other == null || other.getClass() != this.getClass()) return false;
+        Index I = (Index)other;
+        return i == I.i && j == I.j;
+	}
+	
+	/**
+	 * Injective hashCode since 1 <= i, j <= 19
+	 */
+	public int hashCode() {
+		return 100 * i + j;
+	}
+	
 	public String toString() {
 		return i + " " + j;
 	}
