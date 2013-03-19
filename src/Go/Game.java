@@ -1,3 +1,4 @@
+package Go;
 
 public class Game {
 

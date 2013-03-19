@@ -1,32 +1,41 @@
 
+
+
 import java.util.HashSet;
 import java.util.Scanner;
 
+import Go.Board;
+import Go.Color;
+import Go.Index;
+import Player.AlphaBetaPlayer;
+import Player.NoobPlayer;
+import Player.Player;
+import Player.RndPlayer;
+
 /**
 
-+protocol_version
-+name
-+version
-+known_command
-+list_commands
-+quit
+*protocol_version
+*name
+*version
+*known_command
+*list_commands
+*quit
 *boardsize
 *clear_board
 *komi
 *play
 *genmove
+*showboard
 
-+showboard
-
-
++territories
  */
-public class GTP {
+public class Main {
 
-	public static final String LABELS = "ABCDEFGHJKLMNOPQRST";
 	
 	private static final String PROTOCOL_VERSION = "2";
-	private static final String NAME = "Test";
-	private static final String VERSION = "0";
+
+	private static final int DEFAULT_BOARDSIZE = 9;
+	private static final float DEFAULT_KOMI = 0;
 	
 	private static HashSet<String> known_commands;
 	static {
@@ -43,13 +52,17 @@ public class GTP {
 		known_commands.add("play");
 		known_commands.add("genmove");
 		known_commands.add("showboard");
+		// additional commands
+		known_commands.add("territories");
 	}
 	
 	private static Player player;
-
+	private static Board board;
+	
 	public static void main(String[] args) {
 		
-		player = new RndPlayer(new Game());
+		player = new AlphaBetaPlayer(DEFAULT_KOMI);
+		board = new Board(DEFAULT_BOARDSIZE);
 		
 		Scanner reader = new Scanner(System.in);
 		while(reader.hasNextLine()) {
@@ -123,47 +136,59 @@ public class GTP {
 		case "showboard":
 			showboard(id);
 			break;
+		case "territories":
+			show_territories(id);
+			break;
+		default:
+			System.out.println("unknown command");
+			break;
 		}
 	}
 	
 	static void showboard(String id) {
 		printOk(id);
 		System.out.println();
-		System.out.println(player.getBoard().toString());
+		System.out.println(board.toString());
 	}
 	
 	static void play(String id, String color, String vertex) {
-		player.putStone(Index.vertexToIndex(vertex), Color.strToColor(color));
+		if(!vertex.equals("PASS") && !vertex.endsWith("pass")) {
+			board.processMove(Index.vertexToIndex(vertex), Color.strToColor(color));			
+		}
 		printOk(id);
 		System.out.println();
 	}
 	
 	static void genmove(String id, String color) {
-		Index p = player.makeMove(Color.strToColor(color));
+		Index I = player.makeMove(board.clone(), Color.strToColor(color));
 		printOk(id);
-		if(p == null) {
+		if(I == null) {
 			System.out.println("resign");
-		} else if(p.equals(Index.PASS)) {
+		} else if(I.equals(Index.PASS)) {
 			System.out.println("pass");
 		} else {
-			System.out.println(Index.indexToVertex(p));			
+			board.processMove(I, Color.strToColor(color));
+			System.out.println(Index.indexToVertex(I));			
 		}
 	}
 	
 	static void komi(String id, float arg) {
+		player.reset();
 		player.setKomi(arg);
 		printOk(id);
 		System.out.println();
 	}
 	
 	static void boardsize(String id, int arg) {
-		player.resetGame(arg);
+		board = new Board(arg);
+		player.reset();
 		printOk(id);
 		System.out.println();
 	}
 	
 	static void clear_board(String id) {
-		player.clearBoard();
+		board = new Board(board.getSize());
+		player.reset();
 		printOk(id);
 		System.out.println();
 	}
@@ -175,12 +200,12 @@ public class GTP {
 	
 	static void name(String id) {
 		printOk(id);
-		System.out.println(NAME);
+		System.out.println(player.getName());
 	}
 
 	static void version(String id) {
 		printOk(id);
-		System.out.println(VERSION);
+		System.out.println(player.getVersion());
 	}
 	
 	static void know_command(String id, String command_name) {
@@ -220,6 +245,13 @@ public class GTP {
 			System.out.print(id);
 		}
 		System.out.print(' ');
+	}
+	
+	// Additional command.
+	private static void show_territories(String id) {
+		printOk(id);
+		System.out.println();
+		System.out.println(board.getTerritoriesStrRepresentation());
 	}
 	
 }

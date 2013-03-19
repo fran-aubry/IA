@@ -1,3 +1,4 @@
+package Go;
 
 /** Color of a point on the board. */
 public enum Color {

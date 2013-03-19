@@ -1,8 +1,7 @@
-import java.util.LinkedList;
+package Go;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Queue;
 import java.util.Set;
 
 /** An individual state of the board. */
@@ -13,11 +12,13 @@ public class Board {
 
 	private int boardSize;
 	private Color[][] board;
+	private TerritoryMap territoryMap;
 
 	public Board(Color[][] board) {
 		boardSize = board.length;
 		this.board = board;
 		this.koPoint = null;
+		territoryMap = new TerritoryMap(boardSize);
 	}
 
 	public Board(int size) {
@@ -29,6 +30,7 @@ public class Board {
 			}
 		}
 		this.koPoint = null;
+		territoryMap = new TerritoryMap(boardSize);
 	}
 
 	public Board(Color[][] board, Index koPoint) {
@@ -61,15 +63,8 @@ public class Board {
 		return null;
 	}
 
-	public void makeFirstPossibleMove(Color c) {
-		for(int i = 0; i < boardSize; i++) {
-			for(int j = 0; j < boardSize; j++) {
-				Index p = new Index(i, j);
-				if(isValidMove(p, c)) {
-					processMove(p, c);
-				}
-			}
-		}
+	public TerritoryMap getTerritoryMap() {
+		return territoryMap;
 	}
 	
 	/**
@@ -78,8 +73,8 @@ public class Board {
 	public void processMove(Index I, Color c) {
 		List<Index> neighbors = getNeighbors(I);
 		int nbRemovedStones = 0;
-		for(Index J : neighbors) {
-			Chain chain = getChainAt(J, c.opposite());
+		for(Index N : neighbors) {
+			Chain chain = getChainAt(N, c.opposite());
 			// Since the play is valid, if an adjacent chain
 			// has only one liberty, then I must be it.
 			if(chain.nbLiberties() == 1) {
@@ -90,8 +85,29 @@ public class Board {
 		// If exactly one stone was removed then it is the new ko point.
 		if(nbRemovedStones == 1) {
 			koPoint = I;
+		} else {
+			koPoint = null;
 		}
 		board[I.i][I.j] = c;
+		// The territory of a color c is the set of intersection that are
+		// empty and such that all empty path from it lead to a stone of
+		// color c.
+		territoryMap.setTerritory(I, Color.EMPTY);
+		// Update adjacent territories
+		for(Index N : neighbors) {
+			if(getColor(N) == Color.EMPTY) {
+				EmptyZone emptyZone = getEmptyZone(N);
+				Color territoryColor = Color.EMPTY;
+				if(emptyZone.getBlackAdjacents().size() == 0) {
+					territoryColor = Color.WHITE;
+				} else if(emptyZone.getWhiteAdjacents().size() == 0) {
+					territoryColor = Color.BLACK;
+				}
+				for(Index J : emptyZone.getZone()) {
+					territoryMap.setTerritory(J, territoryColor);
+				}
+			}
+		}
 	}
 	
 	private void remove(Chain chain) {
@@ -111,16 +127,46 @@ public class Board {
 	private void getChainAt(Index p, Color c, Chain chain) {
 		chain.addStone(p);
 		List<Index> neighbors = getNeighbors(p);
-		for(Index I : neighbors) {
-			if(board[I.i][I.j] == c && !chain.containsStone(I)) {
-				getChainAt(I, c, chain);
+		for(Index N : neighbors) {
+			if(board[N.i][N.j] == c && !chain.containsStone(N)) {
+				getChainAt(N, c, chain);
 			}
-			if(board[I.i][I.j] == Color.EMPTY) {
-				chain.addLiberty(I);
+			if(board[N.i][N.j] == Color.EMPTY) {
+				chain.addLiberty(N);
 			}
 		}
 	}
-
+	
+	/**
+	 * Given an empty intersection, computes a flood fill of
+	 * all empty intersections surrounding it.
+	 * It also computes the frontier, the white and black stones
+	 * around that empty zone. This is returned in the form of
+	 * an instance of EmptyZone.
+	 */
+	public EmptyZone getEmptyZone(Index I) {
+		EmptyZone emptyZone = new EmptyZone();
+		getEmptyZone(I, emptyZone);
+		return emptyZone;
+	}
+	
+	/**
+	 * Auxiliary private method for getEmptyZone. 
+	 */
+	private void getEmptyZone(Index I, EmptyZone emptyZone) {
+		if(getColor(I) == Color.EMPTY && !emptyZone.contains(I)) {
+			emptyZone.addEmptyIntersection(I);
+			for(Index N : getNeighbors(I)) {
+				if(getColor(N) == Color.EMPTY) {
+					getEmptyZone(N, emptyZone);
+				} else if(getColor(N) == Color.BLACK) {
+					emptyZone.addBlackAdjacent(N);
+				} else {
+					emptyZone.addWhiteAdjacent(N);
+				}
+			}
+		}
+	}
 
 	/**
 	 * Check if it is a valid move to put a stone of
@@ -234,6 +280,7 @@ public class Board {
 		return neighbors;
 	}
 
+	/*
 	private Chain getChain(Index p) {
 		Set<Index> stones = getChainPoints(clone(), p);
 
@@ -248,6 +295,7 @@ public class Board {
 
 		return new Chain(stones, liberties);
 	}
+	*/
 
 	private Set<Index> getChainPoints(Board b, Index p) {
 		Set<Index> stones = new HashSet<Index>();
@@ -282,6 +330,40 @@ public class Board {
 		return new Board(stones);
 	}
 
+	public String getTerritoriesStrRepresentation() {
+		StringBuilder string = new StringBuilder();
+
+		String space = boardSize < 10 ? "" : " ";
+
+		string.append(space + ' ');
+		for(int i = 0; i < boardSize; i++) {
+			string.append((char)(65 + (i >= 8 ? (i + 1) : i)));
+		}
+		string.append(space + ' ');
+		string.append('\n');
+
+		for (int i = 0; i < boardSize; i++) {
+			string.append(boardSize - i < 10 ? space + (boardSize - i) : boardSize - i);
+			for (int j = 0; j < boardSize; j++) {
+				if(board[board.length - i - 1][j] != Color.EMPTY) {
+					string.append(board[board.length - i - 1][j].toString());
+				} else {
+					string.append(territoryMap.getTerritory(boardSize - i - 1, j).toString().toUpperCase());					
+				}
+			}
+			string.append(boardSize - i < 10 ? space + (boardSize - i) : boardSize - i);
+			string.append('\n');
+		}
+
+		string.append(space + ' ');
+		for(int i = 0; i < boardSize; i++) {
+			string.append((char)(65 + (i >= 8 ? (i + 1) : i)));
+		}
+		string.append(space + ' ');
+
+		return string.toString();
+	}
+	
 	@Override
 	public String toString() {
 		StringBuilder string = new StringBuilder();
@@ -290,7 +372,7 @@ public class Board {
 
 		string.append(space + ' ');
 		for(int i = 0; i < board.length; i++) {
-			string.append(GTP.LABELS.charAt(i));
+			string.append((char)(65 + (i >= 8 ? (i + 1) : i)));
 		}
 		string.append(space + ' ');
 		string.append('\n');
@@ -306,10 +388,15 @@ public class Board {
 
 		string.append(space + ' ');
 		for(int i = 0; i < board.length; i++) {
-			string.append(GTP.LABELS.charAt(i));
+			string.append((char)(65 + (i >= 8 ? (i + 1) : i)));
 		}
 		string.append(space + ' ');
 
 		return string.toString();
+	}
+
+	public List<Board> getSuccessors() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

@@ -1,23 +1,27 @@
+package Player;
+import Go.Board;
+import Go.Color;
+import Go.Game;
+import Go.Index;
+
 
 public class RndPlayer extends Player {
 
-	public RndPlayer(Game game) {
-		super(game);
+	public RndPlayer(float komi) {
+		super(komi);
 	}
 
 	@Override
-	public Index makeMove(Color color) {
-		Board board = game.getBoard();
+	public Index makeMove(Board board, Color color) {
 		Index p = board.getFirstPossibleMove(color);
 		if(p != null) {
-			board.setColor(p, color);
 			return p;
 		}
 		return Index.PASS;
 	}
 
 	@Override
-	public void resetPlayer() {
+	public void reset() {
 		// TODO Auto-generated method stub
 	}
 
@@ -25,6 +29,12 @@ public class RndPlayer extends Player {
 	public void updateKomi() {
 		// TODO Auto-generated method stub
 		
+	}
+
+	@Override
+	public String getName() {
+		// TODO Auto-generated method stub
+		return "RND";
 	}
 	
 }
